@@ -7,22 +7,53 @@ a REST API, and the security controls the assignment checklist calls for.
 
 ---
 
+## Requirements
+
+| Requirement | Version | Notes |
+| --- | --- | --- |
+| PHP | 8.2 or newer | with `mbstring`, `openssl`, `pdo_mysql`, `tokenizer`, `xml`, `ctype`, `json`, `fileinfo`, `curl`, `zip`, `gd` |
+| Composer | 2.x | |
+| MySQL / MariaDB | 5.7+ / 10.3+ | the dashboard uses `DATE_FORMAT` and `TIMESTAMPDIFF`, so SQLite will not work for it |
+
+Node and npm are **not** required — the front end uses Bootstrap and Chart.js
+from a CDN, so there is no asset build step.
+
+> **XAMPP users:** if `php` is not on your `PATH`, prefix the commands below with
+> the full path to the XAMPP binary, e.g. `/opt/lampp/bin/php artisan serve`.
+
+---
+
 ## Setup
 
 ```bash
-# 1. Create the database (requires sudo on the system MariaDB/MySQL)
+# 1. Get the code and its dependencies
+git clone https://github.com/Finnwindhoek/AidBridge.git
+cd AidBridge
+composer install
+
+# 2. Create your environment file and app key
+cp .env.example .env
+php artisan key:generate
+
+# 3. Create the database (needs an account that can CREATE DATABASE)
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS aidbridge CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-sudo mysql -e "CREATE USER IF NOT EXISTS 'aidbridge'@'localhost' IDENTIFIED BY 'aidbridge_secret';
+sudo mysql -e "CREATE USER IF NOT EXISTS 'aidbridge'@'localhost' IDENTIFIED BY 'choose-a-password';
                GRANT ALL PRIVILEGES ON aidbridge.* TO 'aidbridge'@'localhost'; FLUSH PRIVILEGES;"
 
-# 2. Build the schema and demo data
-/opt/lampp/bin/php artisan migrate:fresh --seed
+# 4. Put that password into .env as DB_PASSWORD, then confirm the connection
+php artisan db:show
 
-# 3. Serve
-/opt/lampp/bin/php artisan serve
+# 5. Build the schema and demo data
+php artisan migrate:fresh --seed
+
+# 6. Serve
+php artisan serve
 ```
 
 Then open <http://localhost:8000>.
+
+`php artisan key:generate` in step 2 is not optional — `APP_KEY` encrypts every
+stored NRIC, and the app will not boot without it.
 
 ### Demo accounts
 
@@ -31,11 +62,24 @@ Then open <http://localhost:8000>.
 | Administrator | `admin@aidbridge.test` | `password123` |
 | Beneficiary | `siti@example.test` (and 9 others) | `password123` |
 
+### Optional settings
+
+Both are safe to leave blank — the features fail closed rather than breaking the app.
+
+| Variable | Effect if unset |
+| --- | --- |
+| `PAYMENT_WEBHOOK_SECRET` | `POST /webhooks/payments` rejects every request with 401. Set it to any long random string to exercise the webhook. |
+| `AGENCY_VERIFY_ENABLED` | Set `false` to skip the external registry lookup; eligibility assessment still runs and records the check as unavailable. |
+| `MAIL_*` | Status-change notifications are queued but not delivered. Failures are logged, never fatal. |
+
 ### Tests
 
 ```bash
-/opt/lampp/bin/php artisan test
+php artisan test
 ```
+
+The suite runs against in-memory SQLite, so it needs no database setup and can
+be run immediately after step 2.
 
 The suite runs against in-memory SQLite and covers RBAC, tenancy isolation, NRIC
 encryption, upload rejection, all five patterns, budget integrity and webhook
