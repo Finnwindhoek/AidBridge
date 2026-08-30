@@ -3,8 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Application;
-use App\Services\Application\ApplicationService;
-use App\Services\Eligibility\EligibilityService;
+use App\Services\Workflow\ApplicationWorkflowFacade;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -16,9 +15,12 @@ use RuntimeException;
  */
 class EligibilityController extends Controller
 {
+    /**
+     * One collaborator, not three: the FACADE owns the ordering of the assessment,
+     * the status moves and the payout so this controller does not have to.
+     */
     public function __construct(
-        private readonly EligibilityService $eligibilityService,
-        private readonly ApplicationService $applicationService,
+        private readonly ApplicationWorkflowFacade $workflow,
     ) {}
 
     /** Review queue: submitted applications awaiting assessment or decision. */
@@ -37,18 +39,11 @@ class EligibilityController extends Controller
     }
 
     /** Runs the strategy chain and the external registry lookup. */
-    public function assess(Application $application): RedirectResponse
+    public function assess(Request $request, Application $application): RedirectResponse
     {
         $this->authorize('review', $application);
 
-        $breakdown = $this->eligibilityService->assess($application);
-
-        // Assessing an application implicitly starts the review.
-        try {
-            $this->applicationService->markUnderReview($application, auth()->user());
-        } catch (RuntimeException) {
-            // Already under review; re-assessment is allowed and is not an error.
-        }
+        $breakdown = $this->workflow->review($application, $request->user());
 
         $summary = $breakdown['eligible']
             ? "Assessment complete. Score {$breakdown['blended_score']}/100 — recommendation: ".
@@ -69,7 +64,7 @@ class EligibilityController extends Controller
         ]);
 
         try {
-            $this->applicationService->decide(
+            $closure = $this->workflow->close(
                 $application,
                 $request->user(),
                 $data['decision'] === 'approve',
@@ -79,8 +74,10 @@ class EligibilityController extends Controller
             return back()->withErrors(['decision' => $e->getMessage()]);
         }
 
-        return back()->with('status', $data['decision'] === 'approve'
-            ? 'Application approved. You can now schedule the disbursement.'
-            : 'Application rejected and the applicant has been notified.');
+        // An approval whose payout could not be raised is still an approval, so it
+        // is reported as a warning beside the decision rather than as a failure.
+        return $closure->needsManualDisbursement()
+            ? back()->with('warning', $closure->summary())
+            : back()->with('status', $closure->summary());
     }
 }

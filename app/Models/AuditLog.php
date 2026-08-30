@@ -11,6 +11,7 @@ class AuditLog extends Model
     protected $fillable = [
         'user_id',
         'action',
+        'correlation_id',
         'auditable_type',
         'auditable_id',
         'ip_address',
@@ -31,6 +32,12 @@ class AuditLog extends Model
     public function auditable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /** All rows written by the same request, i.e. one admin action end to end. */
+    public function scopeCorrelatedWith($query, string $correlationId)
+    {
+        return $query->where('correlation_id', $correlationId);
     }
 
     /** Short model name for report tables, e.g. "Application" instead of the FQCN. */

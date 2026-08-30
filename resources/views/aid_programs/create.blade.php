@@ -5,18 +5,20 @@
 <div class="row justify-content-center">
 <div class="col-lg-9">
 
-<h1 class="h4 mb-1">Create an aid programme</h1>
-<p class="text-muted small mb-3">
-    Choosing a type applies that type's defaults via <span class="mono">AidProgramFactory</span>.
-    Anything you leave blank is filled in from those defaults.
-</p>
+<x-page-header
+    title="Create an aid programme"
+    subtitle="Choosing a type applies that type's defaults via AidProgramFactory. Anything you leave blank is filled in from those defaults."
+    :breadcrumbs="[
+        ['label' => 'Programmes', 'url' => route('aid-programs.index')],
+        ['label' => 'New programme'],
+    ]" />
 
 <form method="POST" action="{{ route('aid-programs.store') }}" class="card">
     @csrf
     <div class="card-body">
 
         <div class="mb-3">
-            <label for="type" class="form-label">Programme type</label>
+            <label for="type" class="form-label">Programme type <span class="required" aria-hidden="true">*</span></label>
             <select id="type" name="type" class="form-select @error('type') is-invalid @enderror" required>
                 <option value="">Select a type…</option>
                 @foreach ($typeOptions as $value => $label)
@@ -28,7 +30,7 @@
         </div>
 
         <div class="mb-3">
-            <label for="title" class="form-label">Title</label>
+            <label for="title" class="form-label">Title <span class="required" aria-hidden="true">*</span></label>
             <input type="text" id="title" name="title"
                    class="form-control @error('title') is-invalid @enderror"
                    value="{{ old('title') }}" placeholder="Monthly B40 Food Subsidy" required>

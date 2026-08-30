@@ -5,9 +5,16 @@
 <div class="row justify-content-center">
 <div class="col-lg-9">
 
-<h1 class="h4 mb-1">Edit programme</h1>
+<x-page-header
+    title="Edit programme"
+    :breadcrumbs="[
+        ['label' => 'Programmes', 'url' => route('aid-programs.index')],
+        ['label' => $program->title, 'url' => route('aid-programs.show', $program)],
+        ['label' => 'Edit'],
+    ]" />
+
 <p class="text-muted small mb-3">
-    Type is fixed at <span class="badge bg-light text-dark">{{ $program->type->label() }}</span>.
+    Type is fixed at <span class="badge badge-soft">{{ $program->type->label() }}</span>.
     Changing the total budget adjusts the remaining balance by the same amount.
 </p>
 
@@ -17,7 +24,7 @@
     <div class="card-body">
 
         <div class="mb-3">
-            <label for="title" class="form-label">Title</label>
+            <label for="title" class="form-label">Title <span class="required" aria-hidden="true">*</span></label>
             <input type="text" id="title" name="title"
                    class="form-control @error('title') is-invalid @enderror"
                    value="{{ old('title', $program->title) }}" required>

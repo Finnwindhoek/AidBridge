@@ -36,6 +36,19 @@ enum ApplicationStatus: string
         };
     }
 
+    /** Bootstrap Icons name paired with the badge, so status is not colour-only. */
+    public function icon(): string
+    {
+        return match ($this) {
+            self::Draft => 'pencil-square',
+            self::Submitted => 'send-check',
+            self::UnderReview => 'hourglass-split',
+            self::Approved => 'check-circle-fill',
+            self::Rejected => 'x-circle-fill',
+            self::Withdrawn => 'slash-circle',
+        };
+    }
+
     /** A beneficiary may still edit or delete the application in these states. */
     public function isEditable(): bool
     {

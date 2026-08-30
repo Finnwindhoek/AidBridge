@@ -2,48 +2,43 @@
 @section('title', 'Audit Trail')
 
 @section('content')
-<h1 class="h4 mb-1">Audit trail</h1>
-<p class="text-muted small mb-3">
-    Immutable record of every action. Written automatically by
-    <span class="mono">ApplicationObserver</span> and <span class="mono">AuditLogger</span>;
-    sensitive values are redacted before storage.
-</p>
+<x-page-header
+    title="Audit trail"
+    subtitle="Immutable record of every action, written automatically by ApplicationObserver and AuditLogger. Sensitive values are redacted before storage, and rows sharing a trace badge were written by the same request — one action." />
 
-<div class="card mb-3">
-    <div class="card-body py-3">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label small mb-1">Action</label>
-                <select name="action" class="form-select form-select-sm">
-                    <option value="">All actions</option>
-                    @foreach ($actions as $action)
-                        <option value="{{ $action }}" @selected(request('action') === $action)>{{ $action }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-5">
-                <label class="form-label small mb-1">Actor email contains</label>
-                <input type="text" name="user" value="{{ request('user') }}" class="form-control form-control-sm">
-            </div>
-            <div class="col-md-3 d-flex gap-2">
-                <button class="btn btn-sm btn-secondary flex-grow-1">Filter</button>
-                <a href="{{ route('reports.audit') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
-            </div>
-        </form>
+<x-filter-card
+    :action="route('reports.audit')"
+    :count="$logs->total().' '.Str::plural('entry', $logs->total()).' recorded'">
+
+    <div class="col-md-4">
+        <label for="filter-action" class="form-label small mb-1">Action</label>
+        <select id="filter-action" name="action" class="form-select form-select-sm">
+            <option value="">All actions</option>
+            @foreach ($actions as $action)
+                <option value="{{ $action }}" @selected(request('action') === $action)>{{ $action }}</option>
+            @endforeach
+        </select>
     </div>
-</div>
+
+    <div class="col-md-5">
+        <label for="filter-user" class="form-label small mb-1">Actor email contains</label>
+        <input type="search" id="filter-user" name="user" value="{{ request('user') }}"
+               class="form-control form-control-sm">
+    </div>
+</x-filter-card>
 
 <div class="card">
     <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th style="width:160px">When</th>
-                    <th>Action</th>
-                    <th>Actor</th>
-                    <th>Subject</th>
-                    <th style="width:120px">IP</th>
-                    <th>Details</th>
+                    <th scope="col" style="width:160px">When</th>
+                    <th scope="col">Action</th>
+                    <th scope="col">Actor</th>
+                    <th scope="col">Subject</th>
+                    <th scope="col" style="width:110px">Trace</th>
+                    <th scope="col" style="width:120px">IP</th>
+                    <th scope="col">Details</th>
                 </tr>
             </thead>
             <tbody>
@@ -63,6 +58,15 @@
                             <span class="text-muted">#{{ $log->auditable_id }}</span>
                         @endif
                     </td>
+                    <td class="small">
+                        {{-- First 8 chars are enough to eyeball which rows belong together. --}}
+                        @if ($log->correlation_id)
+                            <span class="badge badge-soft mono"
+                                  title="{{ $log->correlation_id }}">{{ substr($log->correlation_id, 0, 8) }}</span>
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
+                    </td>
                     <td class="small mono text-muted">{{ $log->ip_address }}</td>
                     <td class="small">
                         @if ($log->payload)
@@ -77,12 +81,21 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">No audit entries match these filters.</td></tr>
+                <tr>
+                    <td colspan="7">
+                        <x-empty-state
+                            icon="shield-lock"
+                            title="No audit entries found"
+                            message="No recorded actions match these filters." />
+                    </td>
+                </tr>
             @endforelse
             </tbody>
         </table>
     </div>
 </div>
 
-<div class="mt-3">{{ $logs->links() }}</div>
+@if ($logs->hasPages())
+    <div class="mt-3">{{ $logs->withQueryString()->links() }}</div>
+@endif
 @endsection

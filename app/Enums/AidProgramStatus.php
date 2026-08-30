@@ -23,4 +23,15 @@ enum AidProgramStatus: string
             self::Archived => 'dark',
         };
     }
+
+    /** Bootstrap Icons name paired with the badge, so status is not colour-only. */
+    public function icon(): string
+    {
+        return match ($this) {
+            self::Draft => 'pencil-square',
+            self::Open => 'unlock-fill',
+            self::Closed => 'lock-fill',
+            self::Archived => 'archive-fill',
+        };
+    }
 }

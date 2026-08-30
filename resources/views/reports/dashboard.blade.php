@@ -2,72 +2,77 @@
 @section('title', 'Dashboard')
 
 @section('content')
-@php $h = $metrics['headline']; @endphp
+@php $h = $metrics['headline']; $v = $metrics['velocity']; @endphp
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="h4 mb-0">Monitoring dashboard</h1>
-        <p class="text-muted small mb-0">Live aid distribution metrics across all programmes.</p>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="{{ route('reports.applications') }}" class="btn btn-outline-secondary btn-sm">Detailed reports</a>
-        <button id="refreshBtn" class="btn btn-aidbridge btn-sm"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
-    </div>
-</div>
+<x-page-header
+    title="Monitoring dashboard"
+    subtitle="Live aid distribution metrics across all programmes.">
+    <x-slot:actions>
+        <a href="{{ route('reports.applications') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-table" aria-hidden="true"></i> Detailed reports
+        </a>
+        <button id="refreshBtn" class="btn btn-aidbridge btn-sm">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Refresh
+        </button>
+    </x-slot:actions>
+</x-page-header>
 
 {{-- Headline counters --}}
-<div class="row g-2 mb-3">
+<div class="row g-3 mb-3">
     <div class="col-6 col-lg-3">
-        <div class="card stat-card h-100"><div class="card-body">
-            <div class="small text-muted">Total applications</div>
-            <div class="stat-value">{{ number_format($h['total_applications']) }}</div>
-            <div class="small text-muted">{{ number_format($h['pending_applications']) }} awaiting decision</div>
-        </div></div>
+        <x-stat-card
+            label="Total applications"
+            icon="file-earmark-text"
+            :value="number_format($h['total_applications'])"
+            :meta="number_format($h['pending_applications']).' awaiting decision'" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card stat-card h-100"><div class="card-body">
-            <div class="small text-muted">Approval rate</div>
-            <div class="stat-value text-success">{{ $h['approval_rate'] }}%</div>
-            <div class="small text-muted">{{ number_format($h['approved_applications']) }} approved</div>
-        </div></div>
+        <x-stat-card
+            label="Approval rate"
+            icon="check2-circle"
+            :value="$h['approval_rate'].'%'"
+            value-class="text-success"
+            :meta="number_format($h['approved_applications']).' approved'" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card stat-card h-100"><div class="card-body">
-            <div class="small text-muted">Total disbursed</div>
-            <div class="stat-value text-aidbridge">RM {{ number_format($h['total_disbursed'], 0) }}</div>
-            <div class="small text-muted">{{ number_format($h['beneficiaries_paid']) }} beneficiaries paid</div>
-        </div></div>
+        <x-stat-card
+            label="Total disbursed"
+            icon="cash-coin"
+            :value="'RM '.number_format($h['total_disbursed'], 0)"
+            value-class="text-aidbridge"
+            :meta="number_format($h['beneficiaries_paid']).' beneficiaries paid'" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card stat-card h-100"><div class="card-body">
-            <div class="small text-muted">Budget remaining</div>
-            <div class="stat-value">RM {{ number_format($h['budget_remaining'], 0) }}</div>
-            <div class="small text-muted">of RM {{ number_format($h['budget_allocated'], 0) }} allocated</div>
-        </div></div>
+        <x-stat-card
+            label="Budget remaining"
+            icon="wallet2"
+            :value="'RM '.number_format($h['budget_remaining'], 0)"
+            :meta="'of RM '.number_format($h['budget_allocated'], 0).' allocated'" />
     </div>
 </div>
 
 {{-- Velocity band --}}
-@php $v = $metrics['velocity']; @endphp
 <div class="card mb-3">
+    <div class="card-header">
+        <i class="bi bi-speedometer2" aria-hidden="true"></i> Aid distribution velocity
+    </div>
     <div class="card-body py-3">
-        <div class="row text-center">
-            <div class="col-md-3">
-                <div class="small text-muted">Aid distribution velocity</div>
-                <div class="fw-semibold fs-5">{{ $v['avg_days'] }} days</div>
-                <div class="small text-muted">average, submission → payment</div>
+        <div class="row g-3 text-center">
+            <div class="col-6 col-md-3">
+                <div class="stat-label">Average, submission &rarr; payment</div>
+                <div class="fw-bold fs-4 text-aidbridge">{{ $v['avg_days'] }} <span class="fs-6 fw-normal">days</span></div>
             </div>
-            <div class="col-md-3">
-                <div class="small text-muted">Fastest</div>
-                <div class="fw-semibold fs-5">{{ $v['fastest_days'] }} days</div>
+            <div class="col-6 col-md-3">
+                <div class="stat-label">Fastest</div>
+                <div class="fw-bold fs-4">{{ $v['fastest_days'] }} <span class="fs-6 fw-normal">days</span></div>
             </div>
-            <div class="col-md-3">
-                <div class="small text-muted">Slowest</div>
-                <div class="fw-semibold fs-5">{{ $v['slowest_days'] }} days</div>
+            <div class="col-6 col-md-3">
+                <div class="stat-label">Slowest</div>
+                <div class="fw-bold fs-4">{{ $v['slowest_days'] }} <span class="fs-6 fw-normal">days</span></div>
             </div>
-            <div class="col-md-3">
-                <div class="small text-muted">Payments settled</div>
-                <div class="fw-semibold fs-5">{{ number_format($v['settled_count']) }}</div>
+            <div class="col-6 col-md-3">
+                <div class="stat-label">Payments settled</div>
+                <div class="fw-bold fs-4">{{ number_format($v['settled_count']) }}</div>
             </div>
         </div>
     </div>
@@ -77,33 +82,33 @@
 <div class="row g-3">
     <div class="col-lg-8">
         <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">Applications over time</div>
+            <div class="card-header"><i class="bi bi-graph-up" aria-hidden="true"></i> Applications over time</div>
             <div class="card-body"><canvas id="trendChart" height="110"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4">
         <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">By status</div>
+            <div class="card-header"><i class="bi bi-pie-chart" aria-hidden="true"></i> By status</div>
             <div class="card-body"><canvas id="statusChart" height="200"></canvas></div>
         </div>
     </div>
 
     <div class="col-lg-6">
         <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">Budget utilisation by programme</div>
+            <div class="card-header"><i class="bi bi-bar-chart-steps" aria-hidden="true"></i> Budget utilisation by programme</div>
             <div class="card-body"><canvas id="budgetChart" height="170"></canvas></div>
         </div>
     </div>
     <div class="col-lg-6">
         <div class="card h-100">
-            <div class="card-header bg-white fw-semibold">Approved applications by state</div>
+            <div class="card-header"><i class="bi bi-geo-alt" aria-hidden="true"></i> Approved applications by state</div>
             <div class="card-body"><canvas id="stateChart" height="170"></canvas></div>
         </div>
     </div>
 
     <div class="col-12">
         <div class="card">
-            <div class="card-header bg-white fw-semibold">Disbursement pipeline (RM)</div>
+            <div class="card-header"><i class="bi bi-diagram-3" aria-hidden="true"></i> Disbursement pipeline (RM)</div>
             <div class="card-body"><canvas id="pipelineChart" height="80"></canvas></div>
         </div>
     </div>

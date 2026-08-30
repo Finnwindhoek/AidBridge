@@ -21,7 +21,7 @@ Complete record of what was built, verified, and fixed.
 | Routes registered | 55 |
 | Tests | 28 passing, 86 assertions |
 | Modules delivered | 5 of 5 |
-| Design patterns implemented | 6 (Factory, Observer, Strategy, State, Repository, Builder) |
+| Design patterns implemented | 8 (Factory, Observer, Strategy, State, Repository, Builder, Facade, Singleton) |
 | Bugs found and fixed | 6 |
 
 ---
@@ -221,6 +221,68 @@ ApplicationReportBuilder::make()
 **Metrics produced:** headline counters, approval rate, applications by status, 6-month trend, budget utilisation per programme, distribution by state, disbursement pipeline, and aid distribution velocity (mean days submission → payment).
 
 **Exports:** CSV streamed via `streamDownload` + `cursor()` so a large export never builds in memory; PDF via dompdf, capped at 500 rows. **NRIC is deliberately excluded from both.**
+
+---
+
+### Cross-module — **Facade Pattern**
+
+| File | Role |
+|---|---|
+| `app/Services/Workflow/ApplicationWorkflowFacade.php` | Single entry point for the admin case flow |
+| `app/Services/Workflow/ApplicationClosure.php` | Immutable outcome of a closing sequence |
+| `app/Http/Controllers/EligibilityController.php` | Reduced to one injected collaborator |
+
+Closing an aid application spans four subsystems — the Strategy chain scores the applicant, the external registry is consulted, the status machine moves, the Observer fans out audit and notifications, and the ledger raises a payout sized by the Factory type. The controller previously drove that ordering by hand.
+
+```php
+$breakdown = $workflow->review($application, $admin);   // assess + move under review
+$closure   = $workflow->close($application, $admin, approved: true);
+```
+
+**Partial-failure rule (owned here, nowhere else):** the decision and the payout are deliberately *not* one transaction. A recorded decision is the legally meaningful act and must survive; a payout that cannot be raised is an operational problem to retry, not a reason to un-approve a qualifying beneficiary. The failure is returned on `ApplicationClosure` and surfaced to the officer as a warning.
+
+This is the GoF Facade — an ordinary injected object, unrelated to Laravel's `Illuminate\Support\Facades` static proxies. The subsystems remain usable directly.
+
+---
+
+### Beneficiary support — **Help assistant** (Strategy, reused)
+
+| File | Role |
+|---|---|
+| `app/Services/Chatbot/ChatIntentInterface.php` | The one contract every intent implements |
+| `app/Services/Chatbot/ChatbotService.php` | Context: scores the question, picks the winner |
+| `app/Services/Chatbot/KeywordMatcher.php` | Shared scoring, composed into each intent |
+| `app/Services/Chatbot/Intents/` | Eight intents, plus an explicit fallback |
+| `app/Http/Controllers/AssistantController.php` | Throttled JSON endpoint |
+| `resources/views/components/assistant-widget.blade.php` | Floating panel |
+
+A rule-based FAQ assistant for beneficiaries — no external API, no key, no per-message cost. This is **not a ninth pattern**: it is a second, independent application of Strategy, which is the point. The same contract shape that solved "which eligibility rules apply?" solves "which intent answers this question?".
+
+**Composition over inheritance:** scoring is shared through an injected `KeywordMatcher` collaborator rather than an abstract base class. An intent *has a* matcher; it is not *a kind of* matcher. The intents stay flat and independent.
+
+**Answers are derived, not canned.** `RequiredDocumentsIntent` asks `AidProgramService` for the real requirement list (Factory-backed), and `EligibilityIntent` reads back the reasons the Strategy chain recorded on the application. Neither can drift out of step with the system's actual behaviour.
+
+**Fallback is deliberate.** `FallbackIntent` scores a hard `0.0` so it never competes; it answers only when nothing clears the confidence threshold. Saying plainly that it did not understand beats guessing at a question about someone's aid money.
+
+**Security boundaries:** widget shown to beneficiaries only; every query scoped through `$user->applications()` (tested — one beneficiary cannot surface another's case); questions never persisted, since free text may carry PII the audit redaction rules would not reach; endpoint throttled at 30/min and closed to guests; replies inserted with `textContent`, never `innerHTML`.
+
+---
+
+### Cross-cutting — **Singleton Pattern**
+
+| File | Role |
+|---|---|
+| `app/Support/RequestContext.php` | One correlation ID per request |
+| `app/Services/AuditLogger.php` | Stamps it onto every audit row |
+| `database/migrations/..._add_correlation_id_to_audit_logs_table.php` | `audit_logs.correlation_id` |
+
+One admin click produces audit rows from three classes that know nothing about each other. Threading an ID through every constructor would couple them all to a concern none of them own; a single shared instance lets each write pick the same ID up independently.
+
+**Textbook form:** private constructor, private `__clone`, `__wakeup()` throws, access only via `getInstance()`.
+
+**Lifetime:** a PHP-FPM request gets a fresh process anyway. The two cases that do not are handled explicitly — the test suite resets between tests, and a queue worker resets between jobs, *except* on the `sync` driver, which runs the job inline inside the dispatching request and must keep that request's trace.
+
+**Payoff:** `AuditLog::correlatedWith($id)` returns one admin action end to end; the audit report renders the first 8 characters as a `trace` badge.
 
 ---
 

@@ -7,6 +7,14 @@
     </div>
 @endif
 
+{{-- Partial success: the action was recorded, but a follow-on step needs attention. --}}
+@if (session('warning'))
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-circle-fill me-1"></i> {{ session('warning') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+@endif
+
 @if ($errors->any())
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
         <i class="bi bi-exclamation-triangle-fill me-1"></i>

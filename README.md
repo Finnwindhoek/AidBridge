@@ -2,7 +2,7 @@
 
 B40 financial aid management system — Laravel 12, MySQL, Blade + Bootstrap 5.
 
-Built to the blueprint in `IP_Assignment.md`: five modules, five design patterns,
+Built to the blueprint in `IP_Assignment.md`: five modules, eight design patterns,
 a REST API, and the security controls the assignment checklist calls for.
 
 ---
@@ -15,8 +15,9 @@ a REST API, and the security controls the assignment checklist calls for.
 | Composer | 2.x | |
 | MySQL / MariaDB | 5.7+ / 10.3+ | the dashboard uses `DATE_FORMAT` and `TIMESTAMPDIFF`, so SQLite will not work for it |
 
-Node and npm are **not** required — the front end uses Bootstrap and Chart.js
-from a CDN, so there is no asset build step.
+Node and npm are **not** required — the front end uses Bootstrap 5, Bootstrap
+Icons and Chart.js from a CDN, plus one hand-written stylesheet at
+`public/css/aidbridge.css`. There is no asset build step.
 
 > **XAMPP users:** if `php` is not on your `PATH`, prefix the commands below with
 > the full path to the XAMPP binary, e.g. `/opt/lampp/bin/php artisan serve`.
@@ -79,11 +80,18 @@ php artisan test
 ```
 
 The suite runs against in-memory SQLite, so it needs no database setup and can
-be run immediately after step 2.
+be run immediately after step 2. It covers RBAC, tenancy isolation, NRIC
+encryption, upload rejection, all eight patterns, budget integrity, webhook
+idempotency, and a render pass over every screen.
 
-The suite runs against in-memory SQLite and covers RBAC, tenancy isolation, NRIC
-encryption, upload rejection, all five patterns, budget integrity and webhook
-idempotency.
+Two things to know:
+
+- Your PHP binary needs the **`pdo_sqlite`** extension. Many distro builds omit
+  it; the XAMPP binary has it, so use `/opt/lampp/bin/php artisan test` if
+  `php artisan test` reports *could not find driver*.
+- The dashboard is excluded from the render test. `DashboardMetricsService` uses
+  MySQL's `DATE_FORMAT` and `TIMESTAMPDIFF`, which SQLite does not implement, so
+  that one screen is verified against MySQL rather than in the suite.
 
 ---
 
@@ -95,6 +103,8 @@ idempotency.
        [ Routes + Middleware (auth, role:admin, signed, throttle) ]
                   │
             [ Controllers ]  ← thin: validate, delegate, redirect
+                  │
+      [ ApplicationWorkflowFacade ]  ← one entry point for the admin case flow
                   │
       ┌───────────┴────────────┐
       ▼                        ▼
@@ -122,6 +132,8 @@ repository owns every query that touches money.
 | 3 | Verification & Eligibility | **Strategy** | `app/Services/Eligibility/Strategies/` |
 | 4 | Fund Allocation & Disbursement | **State** + **Repository** | `app/Services/Disbursement/States/`, `app/Repositories/` |
 | 5 | Reporting & Monitoring | **Builder** | `app/Services/Reporting/ApplicationReportBuilder.php` |
+| — | Admin case handling (cross-module) | **Facade** | `app/Services/Workflow/ApplicationWorkflowFacade.php` |
+| — | Audit correlation (cross-cutting) | **Singleton** | `app/Support/RequestContext.php` |
 
 ### 1. Factory — programme types
 
@@ -183,6 +195,151 @@ ApplicationReportBuilder::make()
 
 Values are bound parameters; the sort column is checked against an allow-list,
 because a column name cannot be bound.
+
+### 6. Facade — closing an aid application
+
+Reviewing and closing a case is not one operation. It spans the Strategy chain,
+the external registry, the application's status machine, the Observer's audit and
+notification fan-out, and the ledger raising a payout sized by the Factory type.
+
+`ApplicationWorkflowFacade` owns that ordering so controllers do not have to:
+
+```php
+$breakdown = $workflow->review($application, $admin);   // assess + move under review
+$closure   = $workflow->close($application, $admin, approved: true);
+
+$closure->disbursement;              // raised automatically on approval
+$closure->needsManualDisbursement(); // true if the payout could not be raised
+```
+
+`EligibilityController` went from three injected services and hand-rolled
+sequencing to one collaborator. The subsystems are untouched and still usable on
+their own — a facade simplifies access to a subsystem, it does not replace it.
+
+One rule lives here and nowhere else: the decision and the payout are **not** a
+single transaction. A recorded decision is the legally meaningful act and must
+survive; a payout that cannot be raised (misconfigured amount, exhausted budget)
+is an operational problem to retry, not a reason to un-approve a beneficiary who
+qualified. The failure is reported on the result object instead of rolled back.
+
+> Note: this is the GoF Facade — an ordinary injected object. It is unrelated to
+> Laravel's `Illuminate\Support\Facades` static proxies.
+
+### 7. Singleton — audit correlation
+
+One admin click fans out across classes that know nothing about each other:
+`EligibilityService` writes `application.assessed`, `ApplicationObserver` writes
+`application.status_changed`, `DisbursementService` writes `disbursement.created`.
+
+`RequestContext` is a textbook singleton — private constructor, private `__clone`,
+`__wakeup()` barred, reachable only via `getInstance()` — holding one correlation
+ID for the lifetime of the request. Every `AuditLogger` write stamps it, so the
+audit trail can be grouped back into the single action that caused it:
+
+```php
+AuditLog::correlatedWith($id)->get();   // every row from one admin action
+```
+
+The audit report shows the first 8 characters as a `trace` badge, so rows
+belonging to one action can be picked out by eye.
+
+Lifetime is managed at both ends that are not a plain PHP-FPM request: the test
+suite resets it between tests, and a queue worker resets it between jobs — except
+on the `sync` driver, which runs the job inline inside the dispatching request and
+must therefore keep that request's trace.
+
+---
+
+## Front end
+
+Server-rendered Blade on Bootstrap 5. No build step, no JavaScript framework —
+the only scripts are Bootstrap's bundle and Chart.js on the dashboard.
+
+| Piece | Where |
+| --- | --- |
+| Palette, component overrides, print styles | `public/css/aidbridge.css` |
+| Authenticated shell (navbar, footer, alerts) | `resources/views/layouts/app.blade.php` |
+| Sign-in / register shell | `resources/views/layouts/guest.blade.php` |
+| Reusable UI components | `resources/views/components/` |
+
+### Shared components
+
+Five anonymous Blade components keep the twelve screens consistent instead of
+each one repeating the same markup:
+
+| Component | Purpose |
+| --- | --- |
+| `<x-page-header>` | Title, subtitle, breadcrumbs and an actions slot |
+| `<x-status-badge>` | Renders any status enum via its `label()`, `colour()` and `icon()` |
+| `<x-stat-card>` | Dashboard and summary counter tiles |
+| `<x-filter-card>` | The GET filter bar above every listing |
+| `<x-empty-state>` | Shown in place of an empty table, with an optional action |
+
+`<x-status-badge>` works for application, disbursement and programme statuses
+alike because all three enums expose the same three methods.
+
+### Accessibility
+
+- Every badge carries an icon as well as a colour, so status is never signalled
+  by colour alone.
+- A skip-to-content link, `aria-current` on the active nav item, labelled form
+  controls, `scope` on table headers and captions on data tables.
+- Visible focus outlines on links, buttons and form fields.
+
+### Notes
+
+- Pagination is switched to Bootstrap markup in `AppServiceProvider`
+  (`Paginator::useBootstrapFive()`). Laravel ships Tailwind markup by default,
+  which this project does not load.
+- The Malaysian state list lives in `config/aidbridge.php` rather than being
+  repeated in the three forms that need it.
+- `PageRenderTest` renders every screen as the role that owns it, so a broken
+  component or an undefined view variable fails the suite rather than the browser.
+
+---
+
+## Help assistant
+
+A beneficiary-facing FAQ widget, offered as a floating panel on every page once
+signed in. It answers the questions an aid office actually fields — "where is my
+payment?", "what documents do I need?", "why was I rejected?" — from the asker's
+own records.
+
+It is **rule-based**: no external API, no API key, no per-message cost, and it
+works with the network down. Under the hood it is the Strategy pattern again,
+the same shape as the eligibility rules:
+
+```
+app/Services/Chatbot/
+    ChatIntentInterface.php     one contract: name, scoreFor, respond
+    KeywordMatcher.php          shared scoring, injected into each intent
+    ChatbotService.php          context: picks the highest-scoring intent
+    ChatReply.php               message + follow-up chips + deep link
+    Intents/                    eight implementations
+```
+
+Each intent scores its own confidence for a question; the service lets the
+highest scorer answer, and falls back to an honest "I did not understand" when
+nothing clears the threshold. Adding a topic means writing one class and adding
+one line to `AppServiceProvider` — no existing intent is touched.
+
+Answers are composed from live data rather than canned text, so they cannot drift
+out of step with the system: the document intent asks `AidProgramService` for the
+real requirement list, and the eligibility intent reads back the reasons the
+Strategy chain actually recorded.
+
+**Boundaries, deliberately:**
+
+- Only beneficiaries see the widget — every answer is built from the asker's own
+  case, which an administrator does not have.
+- Every query is scoped through `$user->applications()`, so one applicant can
+  never be shown another's record however the question is phrased. There is a
+  test for exactly this.
+- Questions are **not stored**. Free text from an applicant may contain personal
+  details, and persisting it would put PII somewhere the audit trail's redaction
+  rules do not reach.
+- The endpoint is throttled to 30 requests a minute and rejects guests.
+- Replies are plain text inserted with `textContent`, never `innerHTML`.
 
 ---
 

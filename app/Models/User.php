@@ -24,7 +24,7 @@ class User extends Authenticatable
         'state',
         'is_disabled',
     ];
-
+ 
     /**
      * nric_encrypted is deliberately absent from $fillable so a crafted request
      * can never write raw ciphertext; it is only reachable via setNricAttribute().

@@ -1,0 +1,438 @@
+/*
+ |----------------------------------------------------------------------
+ | AidBridge — application stylesheet
+ |----------------------------------------------------------------------
+ | A thin layer over Bootstrap 5. Everything here either defines the
+ | palette or adjusts a Bootstrap component; no layout is reinvented, so
+ | the grid, utilities and components behave exactly as documented.
+ */
+
+/* ---------------------------------------------------------------- Tokens */
+
+:root {
+    --ab-navy: #10243f;
+    --ab-navy-700: #1b3557;
+    --ab-teal: #0d7d7d;
+    --ab-teal-600: #0a6363;
+    --ab-surface: #f4f6f9;
+    --ab-border: #e3e8ef;
+    --ab-muted: #64748b;
+    --ab-shadow: 0 1px 2px rgba(16, 36, 63, .06);
+    --ab-shadow-lg: 0 4px 16px rgba(16, 36, 63, .10);
+}
+
+/* ------------------------------------------------------------- Base page */
+
+body {
+    background-color: var(--ab-surface);
+    color: #1f2937;
+    /* Sticks the footer to the bottom on short pages. */
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main {
+    flex: 1 0 auto;
+}
+
+/* Keyboard users must always be able to see where they are. */
+a:focus-visible,
+button:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible {
+    outline: 2px solid var(--ab-teal);
+    outline-offset: 2px;
+}
+
+/* Jump link for screen-reader and keyboard users; visible only on focus. */
+.skip-link {
+    position: absolute;
+    left: -999px;
+    top: 0;
+    z-index: 1080;
+    padding: .6rem 1rem;
+    background: #fff;
+    color: var(--ab-navy);
+    font-weight: 600;
+    border-radius: 0 0 .375rem 0;
+}
+
+.skip-link:focus {
+    left: 0;
+}
+
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .85em;
+}
+
+/* ------------------------------------------------------------ Brand bits */
+
+.bg-aidbridge { background-color: var(--ab-navy) !important; }
+.text-aidbridge { color: var(--ab-teal) !important; }
+
+.btn-aidbridge {
+    background-color: var(--ab-teal);
+    border-color: var(--ab-teal);
+    color: #fff;
+}
+
+.btn-aidbridge:hover,
+.btn-aidbridge:focus {
+    background-color: var(--ab-teal-600);
+    border-color: var(--ab-teal-600);
+    color: #fff;
+}
+
+.btn-aidbridge:disabled {
+    background-color: var(--ab-teal);
+    border-color: var(--ab-teal);
+    color: #fff;
+}
+
+/* ---------------------------------------------------------------- Navbar */
+
+.navbar-brand {
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: rgba(255, 255, 255, .78);
+    padding-inline: .75rem;
+    border-radius: .375rem;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, .08);
+}
+
+/* The current section is marked by weight and a rule, not colour alone. */
+.navbar-dark .navbar-nav .nav-link.active {
+    color: #fff;
+    font-weight: 600;
+    background-color: rgba(255, 255, 255, .12);
+}
+
+/* --------------------------------------------------------- Page headings */
+
+.page-header {
+    margin-bottom: 1.25rem;
+}
+
+.page-header h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-bottom: .15rem;
+}
+
+.page-header .page-subtitle {
+    color: var(--ab-muted);
+    font-size: .875rem;
+    margin-bottom: 0;
+}
+
+.breadcrumb {
+    font-size: .8125rem;
+    margin-bottom: .5rem;
+}
+
+/* ----------------------------------------------------------------- Cards */
+
+.card {
+    border: 1px solid var(--ab-border);
+    border-radius: .5rem;
+    box-shadow: var(--ab-shadow);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid var(--ab-border);
+    font-weight: 600;
+    font-size: .9375rem;
+    padding: .75rem 1rem;
+}
+
+/* Stat tiles on the dashboard. */
+.stat-card .stat-label {
+    font-size: .8125rem;
+    color: var(--ab-muted);
+    margin-bottom: .25rem;
+}
+
+.stat-card .stat-value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.stat-card .stat-meta {
+    font-size: .8125rem;
+    color: var(--ab-muted);
+}
+
+/* ---------------------------------------------------------------- Tables */
+
+.table > :not(caption) > * > * {
+    padding: .7rem .75rem;
+    vertical-align: middle;
+}
+
+.table thead th {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--ab-muted);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* A table inside a card should not double up on borders. */
+.card > .table-responsive > .table,
+.card > .table {
+    margin-bottom: 0;
+}
+
+.card > .table-responsive > .table > :last-child > tr:last-child > td {
+    border-bottom-width: 0;
+}
+
+/* ---------------------------------------------------------------- Badges */
+
+.badge {
+    font-weight: 600;
+    letter-spacing: .01em;
+    padding: .35em .6em;
+}
+
+/* Soft badge: readable at small sizes without shouting like a solid fill. */
+.badge-soft {
+    background-color: rgba(100, 116, 139, .12);
+    color: #475569;
+    border: 1px solid rgba(100, 116, 139, .2);
+}
+
+/* --------------------------------------------------------- Forms & fields */
+
+.form-label {
+    font-weight: 600;
+    font-size: .875rem;
+    margin-bottom: .3rem;
+}
+
+.form-text {
+    font-size: .8125rem;
+}
+
+/* Marks a required field without relying on the asterisk alone. */
+.form-label .required {
+    color: #b3403a;
+    font-weight: 700;
+}
+
+/* ------------------------------------------------------------ Empty state */
+
+.empty-state {
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--ab-muted);
+}
+
+.empty-state .bi {
+    font-size: 2rem;
+    opacity: .45;
+    display: block;
+    margin-bottom: .5rem;
+}
+
+/* -------------------------------------------------- Definition-style lists */
+
+/* Used on detail pages for label/value pairs. */
+.detail-list dt {
+    font-size: .8125rem;
+    color: var(--ab-muted);
+    font-weight: 600;
+}
+
+.detail-list dd {
+    margin-bottom: .85rem;
+}
+
+/* -------------------------------------------------------------- Timeline */
+
+/* Vertical progress rail on the disbursement and application detail pages. */
+.timeline {
+    list-style: none;
+    margin: 0;
+    padding-left: 1.6rem;
+    border-left: 2px solid var(--ab-border);
+}
+
+.timeline > li {
+    position: relative;
+    padding-bottom: 1.1rem;
+}
+
+.timeline > li:last-child {
+    padding-bottom: 0;
+}
+
+.timeline > li::before {
+    content: "";
+    position: absolute;
+    left: -2.05rem;
+    top: .3rem;
+    width: .7rem;
+    height: .7rem;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--ab-border);
+}
+
+.timeline > li.is-done::before {
+    background: var(--ab-teal);
+    border-color: var(--ab-teal);
+}
+
+.timeline > li.is-failed::before {
+    background: #b3403a;
+    border-color: #b3403a;
+}
+
+/* ----------------------------------------------------------------- Auth */
+
+.auth-wrapper {
+    background: linear-gradient(160deg, var(--ab-navy) 0%, var(--ab-teal) 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 2rem 0;
+}
+
+.auth-card {
+    max-width: 480px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.auth-card .card {
+    box-shadow: var(--ab-shadow-lg);
+}
+
+/* ----------------------------------------------------------------- Print */
+
+/* Reports get printed and filed, so give them a usable print view. */
+@media print {
+    .navbar,
+    .footer,
+    .btn,
+    .pagination,
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        background: #fff;
+    }
+
+    .card {
+        border: 1px solid #ccc;
+        box-shadow: none;
+        break-inside: avoid;
+    }
+}
+
+/* ------------------------------------------------------- Help assistant */
+
+.assistant-launcher {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 1045;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 50%;
+    border: none;
+    background: var(--ab-teal);
+    color: #fff;
+    font-size: 1.35rem;
+    box-shadow: var(--ab-shadow-lg);
+}
+
+.assistant-launcher:hover {
+    background: var(--ab-teal-600);
+}
+
+.assistant-panel {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 5.25rem;
+    z-index: 1045;
+    width: min(23rem, calc(100vw - 2.5rem));
+    box-shadow: var(--ab-shadow-lg);
+}
+
+.assistant-log {
+    padding: .85rem;
+    /* Tall enough to hold a full answer, short enough to leave the page usable. */
+    max-height: 20rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+}
+
+.assistant-msg {
+    padding: .5rem .7rem;
+    border-radius: .6rem;
+    font-size: .875rem;
+    line-height: 1.45;
+    max-width: 90%;
+}
+
+.assistant-msg-bot {
+    background: #eef2f7;
+    color: #1f2937;
+    align-self: flex-start;
+    border-bottom-left-radius: .15rem;
+}
+
+.assistant-msg-user {
+    background: var(--ab-teal);
+    color: #fff;
+    align-self: flex-end;
+    border-bottom-right-radius: .15rem;
+}
+
+.assistant-link {
+    align-self: flex-start;
+    font-size: .8125rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.assistant-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    padding: 0 .85rem .6rem;
+}
+
+.assistant-suggestions:empty {
+    padding: 0;
+}
+
+.assistant-chip {
+    font-size: .75rem;
+    padding: .2rem .5rem;
+    border-radius: 1rem;
+}
+
+.assistant-form {
+    display: flex;
+    gap: .4rem;
+    padding: .6rem .85rem .85rem;
+    border-top: 1px solid var(--ab-border);
+}

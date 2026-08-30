@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AuditLog;
+use App\Support\RequestContext;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -10,6 +11,9 @@ use Illuminate\Database\Eloquent\Model;
  *
  * Centralising this keeps request metadata (actor, IP, user agent) consistent and
  * means a caller can never accidentally log an un-redacted payload.
+ *
+ * The correlation ID comes from the RequestContext SINGLETON, so every row written
+ * during one request — whoever writes it — carries the same value.
  */
 class AuditLogger
 {
@@ -30,10 +34,12 @@ class AuditLogger
     public function log(string $action, ?Model $subject = null, array $payload = [], ?int $userId = null): AuditLog
     {
         $request = request();
+        $context = RequestContext::getInstance();
 
         return AuditLog::create([
-            'user_id' => $userId ?? auth()->id(),
+            'user_id' => $userId ?? $context->actorId(),
             'action' => $action,
+            'correlation_id' => $context->correlationId(),
             'auditable_type' => $subject ? $subject::class : null,
             'auditable_id' => $subject?->getKey(),
             'ip_address' => $request?->ip(),

@@ -15,6 +15,8 @@ use App\Services\Application\ApplicationService;
 use App\Services\Disbursement\DisbursementService;
 use App\Services\Eligibility\EligibilityService;
 use App\Services\Reporting\ApplicationReportBuilder;
+use App\Services\Workflow\ApplicationWorkflowFacade;
+use App\Support\RequestContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -418,6 +420,162 @@ class AidWorkflowTest extends TestCase
             'reference_code' => 'AB-000',
         ], ['X-AidBridge-Signature' => 'not-the-right-hmac'])
             ->assertStatus(401);
+    }
+
+    // -----------------------------------------------------------------
+    // SINGLETON PATTERN
+    // -----------------------------------------------------------------
+
+    public function test_the_request_context_cannot_be_instantiated_from_outside(): void
+    {
+        $constructor = (new \ReflectionClass(RequestContext::class))->getConstructor();
+
+        $this->assertTrue($constructor->isPrivate(), 'A singleton must not expose its constructor.');
+        $this->assertTrue(
+            (new \ReflectionClass(RequestContext::class))->getMethod('__clone')->isPrivate(),
+            'A singleton must not be cloneable.'
+        );
+    }
+
+    public function test_the_request_context_is_one_shared_instance(): void
+    {
+        $first = RequestContext::getInstance();
+
+        // Both the pattern's own accessor and the container hand back the same object.
+        $this->assertSame($first, RequestContext::getInstance());
+        $this->assertSame($first, app(RequestContext::class));
+        $this->assertSame($first->correlationId(), app(RequestContext::class)->correlationId());
+
+        // ...until the request ends, which is what reset() stands in for.
+        RequestContext::reset();
+
+        $this->assertNotSame($first, RequestContext::getInstance());
+        $this->assertNotSame($first->correlationId(), RequestContext::getInstance()->correlationId());
+    }
+
+    public function test_every_audit_row_from_one_action_shares_a_correlation_id(): void
+    {
+        $admin = $this->admin();
+        $application = $this->application($this->beneficiary(), $this->programme());
+        $application->forceFill(['status' => ApplicationStatus::Submitted])->save();
+
+        AuditLog::query()->delete();
+
+        // One admin action fanning out across ApplicationService, the Observer and
+        // DisbursementService — none of which know about each other.
+        app(ApplicationWorkflowFacade::class)->close($application, $admin, approved: true);
+
+        $correlationIds = AuditLog::pluck('correlation_id')->unique();
+
+        $this->assertGreaterThan(1, AuditLog::count(), 'The close sequence should write several rows.');
+        $this->assertCount(1, $correlationIds, 'All rows from one request must share one correlation ID.');
+        $this->assertSame(RequestContext::getInstance()->correlationId(), $correlationIds->first());
+    }
+
+    // -----------------------------------------------------------------
+    // FACADE PATTERN
+    // -----------------------------------------------------------------
+
+    public function test_the_facade_reviews_an_application_in_one_call(): void
+    {
+        $admin = $this->admin();
+        $application = $this->application($this->beneficiary(), $this->programme());
+        $application->forceFill(['status' => ApplicationStatus::Submitted])->save();
+
+        $breakdown = app(ApplicationWorkflowFacade::class)->review($application, $admin);
+
+        // The Strategy chain ran...
+        $this->assertTrue($breakdown['eligible']);
+        $this->assertNotNull($application->fresh()->eligibility_score);
+
+        // ...and the status moved, from the single call.
+        $this->assertSame(ApplicationStatus::UnderReview, $application->fresh()->status);
+    }
+
+    public function test_the_facade_tolerates_re_assessing_an_application_already_under_review(): void
+    {
+        $admin = $this->admin();
+        $application = $this->application($this->beneficiary(), $this->programme());
+        $application->forceFill(['status' => ApplicationStatus::Submitted])->save();
+
+        $facade = app(ApplicationWorkflowFacade::class);
+        $facade->review($application, $admin);
+
+        // The second pass must not blow up on the "already under review" refusal.
+        $breakdown = $facade->review($application->fresh(), $admin);
+
+        $this->assertTrue($breakdown['eligible']);
+        $this->assertSame(ApplicationStatus::UnderReview, $application->fresh()->status);
+    }
+
+    public function test_the_facade_closes_an_approval_and_raises_the_payout(): void
+    {
+        $admin = $this->admin();
+        $programme = $this->programme();
+        $application = $this->application($this->beneficiary(), $programme);
+
+        $closure = app(ApplicationWorkflowFacade::class)->close($application, $admin, approved: true, note: 'Qualified.');
+
+        $this->assertTrue($closure->approved);
+        $this->assertSame(ApplicationStatus::Approved, $closure->application->status);
+        $this->assertNotNull($closure->application->decided_at);
+
+        // The payout was raised by the same call, sized by the Factory's formula.
+        $this->assertNotNull($closure->disbursement);
+        $this->assertSame(DisbursementStatus::Pending, $closure->disbursement->status);
+        $this->assertSame('600.00', $closure->disbursement->amount);
+        $this->assertFalse($closure->needsManualDisbursement());
+    }
+
+    public function test_the_facade_raises_no_payout_on_a_rejection(): void
+    {
+        $admin = $this->admin();
+        $application = $this->application($this->beneficiary(), $this->programme());
+
+        $closure = app(ApplicationWorkflowFacade::class)->close($application, $admin, approved: false, note: 'Over threshold.');
+
+        $this->assertFalse($closure->approved);
+        $this->assertSame(ApplicationStatus::Rejected, $closure->application->status);
+        $this->assertNull($closure->disbursement);
+        $this->assertFalse($closure->needsManualDisbursement());
+        $this->assertDatabaseCount('disbursements', 0);
+    }
+
+    public function test_an_approval_survives_a_payout_that_cannot_be_raised(): void
+    {
+        $admin = $this->admin();
+
+        // A misconfigured programme: nothing to pay out.
+        $programme = $this->programme('cash_disbursement', ['payout_amount' => 0]);
+        $application = $this->application($this->beneficiary(), $programme, ['dependents_count' => 0]);
+
+        $closure = app(ApplicationWorkflowFacade::class)->close($application, $admin, approved: true);
+
+        // The decision is the legally meaningful act, so it must not be rolled back
+        // by an operational failure further down the sequence.
+        $this->assertSame(ApplicationStatus::Approved, $application->fresh()->status);
+        $this->assertTrue($closure->approved);
+        $this->assertNull($closure->disbursement);
+        $this->assertTrue($closure->needsManualDisbursement());
+        $this->assertStringContainsString('payout is zero', (string) $closure->disbursementError);
+        $this->assertStringContainsString('manually', $closure->summary());
+    }
+
+    public function test_the_admin_decision_endpoint_goes_through_the_facade(): void
+    {
+        $admin = $this->admin();
+        $application = $this->application($this->beneficiary(), $this->programme());
+        $application->forceFill(['status' => ApplicationStatus::UnderReview])->save();
+
+        $this->actingAs($admin)
+            ->post("/admin/applications/{$application->reference}/decide", [
+                'decision' => 'approve',
+                'note' => 'Approved on review.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(ApplicationStatus::Approved, $application->fresh()->status);
+        $this->assertDatabaseCount('disbursements', 1);
     }
 
     // -----------------------------------------------------------------

@@ -2,100 +2,102 @@
 @section('title', 'Applications')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="h4 mb-0">{{ auth()->user()->isAdmin() ? 'All Applications' : 'My Applications' }}</h1>
-        <p class="text-muted small mb-0">Track status from submission through to payment.</p>
-    </div>
-    @can('create', App\Models\Application::class)
-        <a href="{{ route('applications.create') }}" class="btn btn-aidbridge">
-            <i class="bi bi-plus-lg"></i> New application
-        </a>
-    @endcan
-</div>
+@php $isAdmin = auth()->user()->isAdmin(); @endphp
 
-<div class="card mb-3">
-    <div class="card-body py-3">
-        <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label small mb-1">Status</label>
-                <select name="status" class="form-select form-select-sm">
-                    <option value="">All statuses</option>
-                    @foreach ($statusOptions as $status)
-                        <option value="{{ $status->value }}" @selected(request('status') === $status->value)>
-                            {{ $status->label() }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-5">
-                <label class="form-label small mb-1">Programme</label>
-                <select name="programme" class="form-select form-select-sm">
-                    <option value="">All programmes</option>
-                    @foreach ($programmes as $programme)
-                        <option value="{{ $programme->slug }}" @selected(request('programme') === $programme->slug)>
-                            {{ $programme->title }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-3 d-flex gap-2">
-                <button class="btn btn-sm btn-secondary flex-grow-1">Filter</button>
-                <a href="{{ route('applications.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
-            </div>
-        </form>
+<x-page-header
+    :title="$isAdmin ? 'All applications' : 'My applications'"
+    subtitle="Track status from submission through to payment.">
+    @can('create', App\Models\Application::class)
+        <x-slot:actions>
+            <a href="{{ route('applications.create') }}" class="btn btn-aidbridge">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> New application
+            </a>
+        </x-slot:actions>
+    @endcan
+</x-page-header>
+
+<x-filter-card
+    :action="route('applications.index')"
+    :count="$applications->total().' '.Str::plural('application', $applications->total()).' found'">
+
+    <div class="col-md-4">
+        <label for="filter-status" class="form-label small mb-1">Status</label>
+        <select id="filter-status" name="status" class="form-select form-select-sm">
+            <option value="">All statuses</option>
+            @foreach ($statusOptions as $status)
+                <option value="{{ $status->value }}" @selected(request('status') === $status->value)>
+                    {{ $status->label() }}
+                </option>
+            @endforeach
+        </select>
     </div>
-</div>
+
+    <div class="col-md-5">
+        <label for="filter-programme" class="form-label small mb-1">Programme</label>
+        <select id="filter-programme" name="programme" class="form-select form-select-sm">
+            <option value="">All programmes</option>
+            @foreach ($programmes as $programme)
+                <option value="{{ $programme->slug }}" @selected(request('programme') === $programme->slug)>
+                    {{ $programme->title }}
+                </option>
+            @endforeach
+        </select>
+    </div>
+</x-filter-card>
 
 <div class="card">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="table table-hover mb-0">
+            <caption class="visually-hidden">List of aid applications with status and payment progress</caption>
             <thead class="table-light">
                 <tr>
-                    <th>Reference</th>
-                    @if (auth()->user()->isAdmin())<th>Applicant</th>@endif
-                    <th>Programme</th>
-                    <th class="text-end">Income</th>
-                    <th class="text-center">Deps</th>
-                    <th class="text-center">Score</th>
-                    <th>Status</th>
-                    <th>Payment</th>
+                    <th scope="col">Reference</th>
+                    @if ($isAdmin)<th scope="col">Applicant</th>@endif
+                    <th scope="col">Programme</th>
+                    <th scope="col" class="text-end">Income</th>
+                    <th scope="col" class="text-center">Deps</th>
+                    <th scope="col" class="text-center">Score</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Payment</th>
                 </tr>
             </thead>
             <tbody>
             @forelse ($applications as $application)
                 <tr>
                     <td>
-                        <a href="{{ route('applications.show', $application) }}" class="mono text-decoration-none">
+                        <a href="{{ route('applications.show', $application) }}" class="mono fw-semibold text-decoration-none">
                             {{ Str::limit($application->reference, 13, '…') }}
                         </a>
                         <div class="text-muted small">{{ $application->created_at->format('d M Y') }}</div>
                     </td>
-                    @if (auth()->user()->isAdmin())
+
+                    @if ($isAdmin)
                         <td>
                             {{ $application->user->name }}
-                            <div class="text-muted small">{{ $application->state }}</div>
+                            <div class="text-muted small">{{ $application->state ?: '—' }}</div>
                         </td>
                     @endif
+
                     <td>{{ $application->aidProgram->title }}</td>
                     <td class="text-end">RM {{ number_format((float) $application->household_income, 2) }}</td>
                     <td class="text-center">{{ $application->dependents_count }}</td>
+
                     <td class="text-center">
                         @if ($application->eligibility_score !== null)
-                            <span class="badge bg-{{ $application->eligibility_score >= 50 ? 'success' : 'secondary' }}">
+                            <span class="badge text-bg-{{ $application->eligibility_score >= 50 ? 'success' : 'secondary' }}">
                                 {{ $application->eligibility_score }}
                             </span>
                         @else
-                            <span class="text-muted">—</span>
+                            <span class="text-muted" title="Not yet assessed">—</span>
                         @endif
                     </td>
-                    <td><span class="badge bg-{{ $application->status->colour() }}">{{ $application->status->label() }}</span></td>
+
+                    <td><x-status-badge :status="$application->status" /></td>
+
                     <td>
                         @if ($application->disbursement)
-                            <span class="badge bg-{{ $application->disbursement->status->colour() }}">
-                                {{ $application->disbursement->status->label() }}
-                            </span>
-                            <div class="small text-muted">
+                            <x-status-badge :status="$application->disbursement->status" />
+                            <div class="small text-muted mt-1">
                                 RM {{ number_format((float) $application->disbursement->amount, 2) }}
                             </div>
                         @else
@@ -105,11 +107,21 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">
-                        No applications yet.
-                        @can('create', App\Models\Application::class)
-                            <a href="{{ route('applications.create') }}">Start one.</a>
-                        @endcan
+                    <td colspan="{{ $isAdmin ? 8 : 7 }}">
+                        <x-empty-state
+                            icon="file-earmark-text"
+                            title="No applications found"
+                            :message="request()->hasAny(['status', 'programme'])
+                                ? 'No applications match these filters.'
+                                : 'Applications will appear here once they are created.'">
+                            @can('create', App\Models\Application::class)
+                                <x-slot:action>
+                                    <a href="{{ route('applications.create') }}" class="btn btn-sm btn-aidbridge">
+                                        <i class="bi bi-plus-lg" aria-hidden="true"></i> Start an application
+                                    </a>
+                                </x-slot:action>
+                            @endcan
+                        </x-empty-state>
                     </td>
                 </tr>
             @endforelse
@@ -118,5 +130,7 @@
     </div>
 </div>
 
-<div class="mt-3">{{ $applications->links() }}</div>
+@if ($applications->hasPages())
+    <div class="mt-3">{{ $applications->withQueryString()->links() }}</div>
+@endif
 @endsection

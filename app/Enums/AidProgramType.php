@@ -16,4 +16,14 @@ enum AidProgramType: string
             self::EmergencyGrant => 'Emergency Grant',
         };
     }
+
+    /** Bootstrap Icons name used on programme cards and listings. */
+    public function icon(): string
+    {
+        return match ($this) {
+            self::CashDisbursement => 'cash-stack',
+            self::Voucher => 'ticket-perforated',
+            self::EmergencyGrant => 'exclamation-triangle-fill',
+        };
+    }
 }

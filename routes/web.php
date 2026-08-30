@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AidProgramController;
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DisbursementController;
@@ -57,6 +58,16 @@ Route::middleware('auth')->group(function () {
             ? app(ReportController::class)->dashboard()
             : redirect()->route('applications.index');
     })->name('dashboard');
+
+    /*
+     * Help assistant.
+     *
+     * Throttled because it is the only endpoint that accepts free text from a
+     * signed-in user and runs a scoring pass over every intent for each call.
+     */
+    Route::post('/assistant/ask', [AssistantController::class, 'ask'])
+        ->middleware('throttle:30,1')
+        ->name('assistant.ask');
 
     /*
      * Module 1 — Aid Programme Management

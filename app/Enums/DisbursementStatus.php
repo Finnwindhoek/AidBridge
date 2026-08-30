@@ -60,4 +60,16 @@ enum DisbursementStatus: string
             self::Failed => 'danger',
         };
     }
+
+    /** Bootstrap Icons name paired with the badge, so status is not colour-only. */
+    public function icon(): string
+    {
+        return match ($this) {
+            self::Pending => 'hourglass-split',
+            self::Approved => 'check2-circle',
+            self::Disbursed => 'send-fill',
+            self::Reconciled => 'shield-check',
+            self::Failed => 'x-circle-fill',
+        };
+    }
 }
