@@ -1,3 +1,9 @@
+{{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Module 5 — Reporting & Monitoring
+    Author: Ng Yu Xun
+--}}
 @extends('layouts.app')
 @section('title', 'Audit Trail')
 

@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Module 4 — Fund Allocation & Disbursement Tracking
+ * Author: Kartik
+ */
+
 namespace App\Enums;
 
 use App\Services\Disbursement\States\ApprovedState;

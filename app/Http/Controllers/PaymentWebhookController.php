@@ -1,7 +1,15 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Module 4 — Fund Allocation & Disbursement Tracking
+ * Author: Kartik
+ */
+
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\ApplyInterfaceAgreement;
 use App\Services\Disbursement\DisbursementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,22 +28,28 @@ class PaymentWebhookController extends Controller
     public function handle(Request $request): JsonResponse
     {
         if (! $this->signatureIsValid($request)) {
-            return response()->json(['message' => 'Invalid signature.'], 401);
+            return $this->respond(['status' => 'rejected', 'message' => 'Invalid signature.'], 401, $request);
         }
 
         $data = $request->validate([
+            // The idempotency key IS this integration's unique request identifier,
+            // which is what the Interface Agreement requires for request tracking.
             'idempotency_key' => ['required', 'string', 'max:255'],
             'event_type' => ['required', 'string', 'max:60'],
             'reference_code' => ['required', 'string', 'max:40'],
             'bank_reference' => ['nullable', 'string', 'max:255'],
             'reason' => ['nullable', 'string', 'max:255'],
+            // Optional because the idempotency key already satisfies the agreement's
+            // "timestamp OR requestID" rule; accepted and logged when the gateway
+            // sends it, so a delayed delivery can be identified.
+            'timeStamp' => ['nullable', 'date_format:Y-m-d H:i:s'],
         ]);
 
         $result = $this->service->handleWebhook(
             $data['idempotency_key'],
             $data['event_type'],
             $data['reference_code'],
-            $request->only(['bank_reference', 'reason', 'amount', 'currency']),
+            $request->only(['bank_reference', 'reason', 'amount', 'currency', 'timeStamp']),
         );
 
         // A duplicate is answered 200: the gateway has done nothing wrong and must
@@ -47,7 +61,22 @@ class PaymentWebhookController extends Controller
             default => 202,
         };
 
-        return response()->json($result, $httpStatus);
+        return $this->respond($result, $httpStatus, $request);
+    }
+
+    /**
+     * Adds the Interface Agreement's mandatory response fields to the gateway's
+     * payload. The existing `status` key already reports the result of the
+     * request, so it is kept rather than nested: this endpoint answers an
+     * external party whose client we do not control, and re-shaping its response
+     * body would be a breaking change to their integration.
+     */
+    private function respond(array $payload, int $httpStatus, Request $request): JsonResponse
+    {
+        return response()->json(array_merge($payload, [
+            'timeStamp' => now()->format(ApplyInterfaceAgreement::TIMESTAMP_FORMAT),
+            'requestID' => $request->input('idempotency_key'),
+        ]), $httpStatus);
     }
 
     /**

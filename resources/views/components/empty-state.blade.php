@@ -1,4 +1,10 @@
 {{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Shared component — not owned by a single module.
+    Authors: Liong Ka Kien, Lee Kar How, Chia Yi Kuang, Kartik, Ng Yu Xun
+--}}
+{{--
     Shown in place of an empty table or list.
 
     @param string      $icon     Bootstrap Icons name, without the "bi-" prefix

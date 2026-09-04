@@ -1,3 +1,9 @@
+{{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Shared component — not owned by a single module.
+    Authors: Liong Ka Kien, Lee Kar How, Chia Yi Kuang, Kartik, Ng Yu Xun
+--}}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,6 +53,7 @@
                                 ['route' => 'eligibility.queue',    'match' => 'eligibility.*',        'label' => 'Review Queue',   'icon' => 'clipboard-check'],
                                 ['route' => 'disbursements.index',  'match' => 'disbursements.*',      'label' => 'Disbursements',  'icon' => 'cash-coin'],
                                 ['route' => 'reports.applications', 'match' => 'reports.applications', 'label' => 'Reports',        'icon' => 'file-earmark-bar-graph'],
+                                ['route' => 'integration.index',    'match' => 'integration.*',        'label' => 'Integration',    'icon' => 'diagram-3'],
                                 ['route' => 'reports.audit',        'match' => 'reports.audit',        'label' => 'Audit Trail',    'icon' => 'shield-lock'],
                             ];
                         @endphp

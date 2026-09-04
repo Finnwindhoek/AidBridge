@@ -1,6 +1,15 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Shared component — not owned by a single module.
+ * Authors: Liong Ka Kien, Lee Kar How, Chia Yi Kuang, Kartik, Ng Yu Xun
+ */
+
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DisbursementApiController;
+use App\Http\Controllers\Api\EligibilityApiController;
 use App\Http\Controllers\ReportController;
 use App\Models\AidProgram;
 use App\Models\Application;
@@ -79,6 +88,21 @@ Route::middleware('auth:sanctum')->group(function () {
             ]),
         ];
     })->name('api.applications.show');
+
+    /*
+     * MODULE 3 exposure — the eligibility outcome for one application.
+     * Consumed by Module 4 (to size a payout) and Module 5 (for reporting).
+     */
+    Route::get('/applications/{application}/eligibility', [EligibilityApiController::class, 'show'])
+        ->name('api.applications.eligibility');
+
+    /*
+     * MODULE 4 exposure — ledger totals. Consumed by Module 5. Admin ability is
+     * required in addition to the role, as for every aggregate endpoint.
+     */
+    Route::get('/disbursements/summary', [DisbursementApiController::class, 'summary'])
+        ->middleware(['role:admin', 'abilities:admin'])
+        ->name('api.disbursements.summary');
 
     /*
      * Dashboard metrics for Chart.js. The `admin` ability is checked in addition

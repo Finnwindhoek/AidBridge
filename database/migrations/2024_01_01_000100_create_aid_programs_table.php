@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Module 1 — Aid Programme Management
+ * Author: Liong Ka Kien
+ */
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;

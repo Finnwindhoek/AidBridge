@@ -1,3 +1,9 @@
+{{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Module 1 — Aid Programme Management
+    Author: Liong Ka Kien
+--}}
 @extends('layouts.app')
 @section('title', 'Edit Programme')
 

@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Module 2 — Application & Document Management
+ * Author: Lee Kar How
+ */
+
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;

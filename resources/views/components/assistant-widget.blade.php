@@ -1,4 +1,10 @@
 {{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Module 2 — Application & Document Management
+    Author: Lee Kar How
+--}}
+{{--
     Help assistant.
 
     A floating panel offered to beneficiaries. Answers come from the JSON

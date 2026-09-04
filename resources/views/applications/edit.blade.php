@@ -1,3 +1,9 @@
+{{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Module 2 — Application & Document Management
+    Author: Lee Kar How
+--}}
 @extends('layouts.app')
 @section('title', 'Edit Application')
 
@@ -65,16 +71,31 @@
         <a href="{{ route('applications.show', $application) }}" class="btn btn-outline-secondary">Cancel</a>
         <div class="d-flex gap-2">
             @can('delete', $application)
-                <form method="POST" action="{{ route('applications.destroy', $application) }}"
-                      onsubmit="return confirm('Delete this draft? This cannot be undone.')">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash" aria-hidden="true"></i> Delete draft</button>
-                </form>
+                {{--
+                    The button sits here for layout, but belongs to the delete form
+                    declared below, after this form closes.
+
+                    A <form> must never be nested inside another <form>: the HTML
+                    parser silently discards the inner one. That took the confirm()
+                    handler with it, so a single click deleted a draft with no
+                    confirmation at all. The HTML5 `form` attribute associates the
+                    button with a form by id, with no nesting required.
+                --}}
+                <button type="submit" form="delete-draft-form" class="btn btn-outline-danger">
+                    <i class="bi bi-trash" aria-hidden="true"></i> Delete draft
+                </button>
             @endcan
             <button type="submit" class="btn btn-aidbridge"><i class="bi bi-check-lg" aria-hidden="true"></i> Save changes</button>
         </div>
     </div>
 </form>
+
+@can('delete', $application)
+    <form id="delete-draft-form" method="POST" action="{{ route('applications.destroy', $application) }}"
+          onsubmit="return confirm('Delete this draft? This cannot be undone.')">
+        @csrf @method('DELETE')
+    </form>
+@endcan
 
 </div>
 </div>

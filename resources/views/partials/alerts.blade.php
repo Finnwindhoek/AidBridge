@@ -1,3 +1,9 @@
+{{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Shared component — not owned by a single module.
+    Authors: Liong Ka Kien, Lee Kar How, Chia Yi Kuang, Kartik, Ng Yu Xun
+--}}
 {{-- All output uses {{ }} so any user-supplied text is HTML-escaped (XSS). --}}
 
 @if (session('status'))

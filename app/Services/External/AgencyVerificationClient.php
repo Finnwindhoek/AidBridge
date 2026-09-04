@@ -1,8 +1,17 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Module 3 — Verification & Eligibility Assessment
+ * Author: Chia Yi Kuang
+ */
+
 namespace App\Services\External;
 
+use App\Http\Middleware\ApplyInterfaceAgreement;
 use App\Models\Application;
+use App\Support\RequestContext;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -32,15 +41,23 @@ class AgencyVerificationClient
         }
 
         try {
+            // Interface Agreement: as a CONSUMER we send both mandatory tracking
+            // fields. requestID is this request's correlation ID, so the registry's
+            // logs and our own audit trail can be reconciled against one identifier.
+            $requestId = RequestContext::getInstance()->correlationId();
+
             $response = Http::timeout(self::TIMEOUT_SECONDS)
                 ->retry(self::RETRY_ATTEMPTS, self::RETRY_DELAY_MS, throw: false)
                 ->withToken(config('services.agency.token'))
+                ->withHeaders([ApplyInterfaceAgreement::REQUEST_ID_HEADER => $requestId])
                 ->acceptJson()
                 ->get(config('services.agency.url'), [
                     // Only a one-way hash of the NRIC leaves our system; the raw
                     // identifier is never sent to a third party.
                     'subject_hash' => hash('sha256', (string) $application->user->nric),
                     'reference' => $application->reference,
+                    'requestID' => $requestId,
+                    'timeStamp' => now()->format(ApplyInterfaceAgreement::TIMESTAMP_FORMAT),
                 ]);
 
             if ($response->failed()) {

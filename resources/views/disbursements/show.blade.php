@@ -1,3 +1,9 @@
+{{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Module 4 — Fund Allocation & Disbursement Tracking
+    Author: Kartik
+--}}
 @extends('layouts.app')
 @section('title', 'Disbursement ' . $disbursement->reference_code)
 

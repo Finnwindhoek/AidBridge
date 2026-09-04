@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Module 4 — Fund Allocation & Disbursement Tracking
+ * Author: Kartik
+ */
+
 namespace App\Repositories;
 
 use App\Enums\DisbursementStatus;

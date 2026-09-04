@@ -1,4 +1,10 @@
 {{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Shared component — not owned by a single module.
+    Authors: Liong Ka Kien, Lee Kar How, Chia Yi Kuang, Kartik, Ng Yu Xun
+--}}
+{{--
     Filter bar used above every listing table.
 
     Wraps the caller's fields in a GET form and supplies the Filter/Reset pair, so

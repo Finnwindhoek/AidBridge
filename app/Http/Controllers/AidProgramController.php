@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Module 1 — Aid Programme Management
+ * Author: Liong Ka Kien
+ */
+
 namespace App\Http\Controllers;
 
 use App\Enums\AidProgramStatus;

@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Module 3 — Verification & Eligibility Assessment
+ * Author: Chia Yi Kuang
+ */
+
 namespace App\Services\Eligibility;
 
 /**

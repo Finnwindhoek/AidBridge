@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Shared component — not owned by a single module.
+ * Authors: Liong Ka Kien, Lee Kar How, Chia Yi Kuang, Kartik, Ng Yu Xun
+ */
+
 use App\Http\Controllers\AidProgramController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AssistantController;
@@ -8,6 +15,7 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DisbursementController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\EligibilityController;
+use App\Http\Controllers\IntegrationConsoleController;
 use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
@@ -123,6 +131,9 @@ Route::middleware('auth')->group(function () {
         Route::patch('/admin/disbursements/{disbursement}/disburse', [DisbursementController::class, 'disburse'])->name('disbursements.disburse');
         Route::patch('/admin/disbursements/{disbursement}/reconcile', [DisbursementController::class, 'reconcile'])->name('disbursements.reconcile');
         Route::patch('/admin/disbursements/{disbursement}/fail', [DisbursementController::class, 'fail'])->name('disbursements.fail');
+
+        // Cross-module — live module-to-module web service calls
+        Route::get('/admin/integration', [IntegrationConsoleController::class, 'index'])->name('integration.index');
 
         // Module 5 — Reporting and Monitoring
         Route::get('/admin/reports', [ReportController::class, 'applications'])->name('reports.applications');

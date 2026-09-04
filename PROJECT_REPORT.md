@@ -14,15 +14,15 @@ Complete record of what was built, verified, and fixed.
 
 | Metric | Value |
 |---|---|
-| PHP classes written | 62 |
-| Blade views written | 20 (+1 unused Laravel default) |
-| Migrations | 9 |
+| PHP classes written | 91 in `app/` (127 across the project) |
+| Blade views written | 27 |
+| Migrations | 10 |
 | Database tables | 16 |
-| Routes registered | 55 |
-| Tests | 28 passing, 86 assertions |
+| Routes registered | 59 |
+| Tests | 76 passing, 254 assertions |
 | Modules delivered | 5 of 5 |
 | Design patterns implemented | 8 (Factory, Observer, Strategy, State, Repository, Builder, Facade, Singleton) |
-| Bugs found and fixed | 6 |
+| Bugs found and fixed | 9 |
 
 ---
 
@@ -399,12 +399,12 @@ Reports: `GET /admin/reports` · `/metrics` · `/export/csv` · `/export/pdf` ·
 
 ---
 
-## 10. Testing — 28 tests, 86 assertions
+## 10. Testing — 76 tests, 254 assertions
 
 ### `tests/Feature/AccessControlTest.php` (8)
 Guest redirects · beneficiary blocked from all admin routes · admin reaches admin routes · cross-beneficiary application access forbidden · index scoped to owner · registration cannot escalate to admin · NRIC encrypted at rest and masked in output · unsigned document download rejected
 
-### `tests/Feature/AidWorkflowTest.php` (20)
+### `tests/Feature/AidWorkflowTest.php` (28)
 **Factory:** payout formulas for all three types · unknown type rejected
 **Strategy:** income disqualification · dependents raise threshold · emergency/disability apply only when relevant
 **Observer:** audit entry on every status change · payload redaction
@@ -412,7 +412,20 @@ Guest redirects · beneficiary blocked from all admin routes · admin reaches ad
 **State/Repository:** full lifecycle with budget commitment · **submission and decision timestamps persisted** · **document verification persisted** · failed payout releases budget · budget cannot be overdrawn · retried webhook does not pay twice · bad signature rejected
 **Builder:** chained filters produce correct results · unknown sort column ignored
 
-Run with `/opt/lampp/bin/php artisan test`.
+### `tests/Feature/AssistantTest.php` (12 methods, 22 cases)
+Intent routing across payment, documents, eligibility, rejection, timing, privacy and programme queries · personalised answers composed from the asker's own records · unrecognised and empty questions fall back rather than guess · **one beneficiary never sees another's case** · endpoint rejects guests and validates input · widget offered to beneficiaries but not administrators
+
+### `tests/Feature/PageRenderTest.php` (4)
+Every guest, administrator and beneficiary screen renders with real data · pagination renders as Bootstrap, not Tailwind
+
+### `tests/Feature/WebServiceTest.php` (13)
+**Interface Agreement:** envelope on success and on failure · caller-supplied `requestID` echoed · malformed `requestID` replaced rather than reflected
+**Module 3 exposure:** eligibility outcome published · one beneficiary cannot read another's assessment
+**Module 4 exposure:** ledger totals published to administrators · refused to beneficiaries
+**Webhook:** correctly signed callback accepted and ledger advanced
+**Module-to-module consumption:** mandatory tracking fields sent · envelope unwrapped · provider failure degrades safely rather than throwing · short-lived integration token revoked after the call
+
+Run with `php artisan test`.
 
 ---
 
@@ -532,7 +545,7 @@ Used in the budget-release query, which made the code unportable and untestable 
 ```bash
 # Database (one-time, needs sudo)
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS aidbridge CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-sudo mysql -e "CREATE USER IF NOT EXISTS 'aidbridge'@'localhost' IDENTIFIED BY 'aidbridge_secret';
+sudo mysql -e "CREATE USER IF NOT EXISTS 'aidbridge'@'localhost' IDENTIFIED BY 'choose-a-password';
                GRANT ALL PRIVILEGES ON aidbridge.* TO 'aidbridge'@'localhost'; FLUSH PRIVILEGES;"
 
 # Build schema + demo data
@@ -565,4 +578,77 @@ sudo mysql -e "CREATE USER IF NOT EXISTS 'aidbridge'@'localhost' IDENTIFIED BY '
 
 **Seeded documents have no files.** Document rows exist as metadata; downloads for them correctly return 404.
 
-**Not under version control.** The directory is not a git repository.
+**Version control.** The project was not a git repository during the original build. It has since been prepared for one: `.gitignore` covers `vendor`, `.env` and `node_modules`, and no credentials remain in tracked files.
+
+---
+
+## 15. Revision — 4 September 2026
+
+The sections above record the original build of 10 August 2026. This revision was made to satisfy
+the assignment brief's Section 6 requirements, which the original build did not fully meet. **No
+module's business logic, database schema, migrations or seeders were changed.**
+
+### 15.1 Interface Agreement
+
+Every `/api/*` response is now returned inside the agreed envelope — `status` (`S`/`F`/`E`),
+`timeStamp`, `requestID` and `data` — enforced by a single middleware registered across the whole
+API group, so a newly added route cannot be published outside the agreement. `requestID` falls back
+to the `RequestContext` correlation ID, which is the same value stamped on every audit row, so an
+API call can be traced from a consumer's log into the audit trail.
+
+### 15.2 Module-to-module web services
+
+Two exposures were missing and no module consumed a sibling. Both are now closed:
+
+| New endpoint | Module | Function |
+|---|---|---|
+| `GET /api/applications/{reference}/eligibility` | 3 | `getApplicationEligibility` |
+| `GET /api/disbursements/summary` | 4 | `getDisbursementSummary` |
+
+Five consumers in `app/Services/Integration/` form a closed loop — 2→1, 3→2, 4→3, 5→4, 1→5 — so
+every module both provides and consumes a service. Each extends `InternalServiceClient`, which
+supplies the mandatory request fields, unwraps the envelope, applies a timeout and retry, degrades
+safely on failure, and mints a two-minute least-privilege token that is revoked immediately after
+the call. `/admin/integration` exercises all five live.
+
+### 15.3 Bugs 7–9
+
+**7. Sanctum's `abilities` middleware alias was never registered.** `routes/api.php` had used
+`abilities:admin` on `/api/reports/metrics` since the original build, but Laravel does not register
+Sanctum's aliases automatically. That endpoint had been returning **HTTP 500 for its entire
+existence**. No test exercised it, so nothing caught it. Fixed in `bootstrap/app.php`.
+
+**8. API errors were answered as HTML.** A consumer that omitted `Accept: application/json` was
+redirected to the sign-in page on a validation or authentication failure, so the same endpoint
+answered in two different formats depending on the outcome. The middleware now forces JSON on API
+routes.
+
+**9. "Delete draft" destroyed a draft with no confirmation.** In
+`resources/views/applications/edit.blade.php` the delete `<form>` was nested inside the edit
+`<form>`. HTML forbids nested forms, so the browser silently discards the inner one — taking its
+`onsubmit="return confirm(...)"` with it. Measured on the live page: the server sent **4** forms,
+the parsed DOM contained **3**. The orphaned `_method=DELETE` input was absorbed into the outer
+form and, because PHP takes the last value of a repeated key, beat the outer `_method=PUT` — so the
+deletion still executed, with no confirmation at all. Fixed using the HTML5 `form` attribute, which
+associates a button with a form by id without nesting. Every other view was checked; all their
+forms are unnested.
+
+### 15.4 Testing
+
+The suite grew from 28 tests / 86 assertions to **76 tests / 254 assertions**, the additions being
+`WebServiceTest` (13) and the previously undocumented `AssistantTest` and `PageRenderTest`.
+
+### 15.5 Deliverables
+
+- `database/sql/aidbridge_database.sql` — complete schema and initial data, test-restored into a
+  scratch database to confirm it loads cleanly.
+- Author header comments added to all 143 source files, attributing each to its module owner.
+  Eleven stock Laravel files were deliberately left unstamped rather than claim authorship of
+  framework scaffolding.
+
+### 15.6 A deployment constraint worth recording
+
+The PHP development server handles one request at a time, so a module calling its **own** API over
+HTTP deadlocks: the first request holds the only worker while awaiting the second. `INTERNAL_API_BASE`
+therefore points at a second listener on port 8001. This is a property of the development server,
+not of the design — under PHP-FPM or any multi-worker server the constraint disappears.

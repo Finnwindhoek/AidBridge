@@ -51,6 +51,28 @@ php artisan migrate:fresh --seed
 php artisan serve
 ```
 
+### Two extra processes
+
+The app runs on one server, but two features need a process of their own. Open each in its own
+terminal, alongside `php artisan serve`.
+
+```bash
+# Queued email notifications (status changes). Without this they sit unsent in the jobs table.
+php artisan queue:work
+
+# Module-to-module web service calls, used by /admin/integration only.
+# The dev server is single-threaded, so a module calling its own API through the
+# same server deadlocks. INTERNAL_API_BASE in .env points here.
+php artisan serve --port=8001
+```
+
+Everything else — all five modules, the dashboard, reports, the assistant — works with just
+`php artisan serve`.
+
+> **Docker is not required.** A container setup was used during development on a machine without
+> PHP or MySQL, but this is an ordinary Laravel application: PHP 8.2+, Composer and MySQL are all
+> it needs.
+
 Then open <http://localhost:8000>.
 
 `php artisan key:generate` in step 2 is not optional — `APP_KEY` encrypts every

@@ -1,5 +1,12 @@
 <?php
 
+/**
+ * AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+ *
+ * Module 5 — Reporting & Monitoring
+ * Author: Ng Yu Xun
+ */
+
 namespace App\Services\Reporting;
 
 use App\Models\Application;

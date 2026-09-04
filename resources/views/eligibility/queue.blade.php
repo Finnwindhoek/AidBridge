@@ -1,3 +1,9 @@
+{{--
+    AidBridge — Welfare Aid & Cash Assistance Distribution Management System
+
+    Module 3 — Verification & Eligibility Assessment
+    Author: Chia Yi Kuang
+--}}
 @extends('layouts.app')
 @section('title', 'Review Queue')
 
